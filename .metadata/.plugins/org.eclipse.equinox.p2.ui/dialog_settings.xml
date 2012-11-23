@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.equinox.internal.provisional.p2.ui.dialogs.InstallWizard.WizardSettings">
+		<item value="1225" key="DIALOG_WIDTH"/>
+		<item value="4" key="DIALOG_Y_ORIGIN"/>
+		<item value="193" key="DIALOG_X_ORIGIN"/>
+		<item value="870" key="DIALOG_HEIGHT"/>
+		<item value="1|Lucida Grande|11.0|0|CARBON|1|Lucida Grande" key="DIALOG_FONT_NAME"/>
+	</section>
+	<section name="AvailableIUsPage">
+		<item value="800" key="AvailableListSashWeight"/>
+		<item value="true" key="ResolveInstallWithAllSites"/>
+		<item value="240" key="AvailableVersionColumnWidth"/>
+		<item value="false" key="HideInstalledContent"/>
+		<item value="240" key="AvailableNameColumnWidth"/>
+		<item value="1" key="AvailableViewType"/>
+		<item value="200" key="AvailableDetailsSashWeight"/>
+		<item value="true" key="ShowLatestVersionsOnly"/>
+	</section>
+	<section name="org.eclipse.equinox.internal.provisional.p2.ui.dialogs.UpdateWizard.WizardSettings">
+		<item value="695" key="DIALOG_WIDTH"/>
+		<item value="146" key="DIALOG_Y_ORIGIN"/>
+		<item value="440" key="DIALOG_HEIGHT"/>
+		<item value="458" key="DIALOG_X_ORIGIN"/>
+		<item value="1|Lucida Grande|11.0|0|CARBON|1|Lucida Grande" key="DIALOG_FONT_NAME"/>
+	</section>
+</section>

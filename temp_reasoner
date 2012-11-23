@@ -1,0 +1,492 @@
+package reasoner;
+
+/**
+ * ClueReasoner.java - project skeleton for a propositional reasoner
+ * for the game of Clue.  Unimplemented portions have the comment "TO
+ * BE IMPLEMENTED AS AN EXERCISE".  The reasoner does not include
+ * knowledge of how many cards each player holds.  See
+ * http://cs.gettysburg.edu/~tneller/nsf/clue/ for details.
+ *
+ * @author Riley Siebel
+ * @version 1.0
+ *
+
+Copyright (C) 2011 Riley Siebel
+ Adapted from software by Todd Neller
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+Information about the GNU General Public License is available online at:
+  http://www.gnu.org/licenses/
+To receive a copy of the GNU General Public License, write to the Free
+Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.
+
+ */
+
+import java.io.*;
+import java.util.*;
+
+import board.Constants;
+import solver.*;
+public class ClueReasoner 
+{
+
+	private int numPlayers;
+	private int numCards;
+	private SATSolverGiven solver;    
+	private String[] cards;
+
+	private Sample[] particles;
+
+	private String room;
+	private String weapon;
+	private String suspect;
+
+	private Random r;
+
+	public ClueReasoner(ClueReasoner c) {
+		numPlayers = c.numPlayers;
+		r = new Random();
+		particles = new Sample[c.particles.length];
+		for(int i = 0; i < particles.length; i++) {
+			particles[i] = new Sample(c.particles[i]);
+		}
+
+		cards = new String[c.cards.length];
+		for(int i = 0; i < c.cards.length; i++) {
+			cards[i] = new String(c.cards[i]);
+		}
+		numCards = c.cards.length;
+
+		solver = new SATSolverGiven(c.solver);
+	}
+
+	public ClueReasoner(int numplayers)
+	{
+		numPlayers = numplayers;
+		r = new Random();
+		particles = new Sample[Constants.particles];
+
+		// Initialize card info
+		cards = new String[Constants.suspects.length + Constants.weapons.length + Constants.rooms.length];
+		int i = 0;
+		for (String card : Constants.suspects)
+			cards[i++] = card;
+		for (String card : Constants.weapons)
+			cards[i++] = card;
+		for (String card : Constants.rooms)
+			cards[i++] = card;
+		numCards = i;
+
+		// Initialize solver
+		solver = new SATSolverGiven();
+		addInitialClauses();
+		generateSamples();
+	}
+
+	public int getPlayerNum(String player) 
+	{
+		if (player.equals(Constants.caseFile))
+			return numPlayers;
+		for (int i = 0; i < Constants.players.length; i++)
+			if (player.equals(Constants.players[i]))
+				return i;
+		System.out.println("Illegal player: " + player);
+		return -1;
+	}
+
+	public int getCardNum(String card)
+	{
+		for (int i = 0; i < numCards; i++)
+			if (card.equals(cards[i]))
+				return i;
+		System.out.println("Illegal card: " + card);
+		return -1;
+	}
+
+	public int getPairNum(String player, String card) 
+	{
+		return getPairNum(getPlayerNum(player), getCardNum(card));
+	}
+
+	public int getPairNum(int playerNum, int cardNum)
+	{
+		return playerNum * numCards + cardNum + 1;
+	}    
+
+	private void addInitialClauses() 
+	{
+
+		// Each card is in at least one place (including case file).
+		for (int c = 0; c < numCards; c++) {
+			Literal[] clause = new Literal[numPlayers + 1];
+			for (int p = 0; p <= numPlayers; p++)
+				clause[p] = new Literal(getPairNum(p, c), true);
+			solver.addClause(clause);
+		}    
+
+		// If a card is one place, it cannot be in another place.
+		for (int c = 0; c < numCards; c++) {
+			for (int p1 = 0; p1 <= numPlayers; p1++) {
+				for(int p2 = p1 + 1; p2 <= numPlayers; p2++) {
+					Literal[] clause = new Literal[2];
+					clause[0] = new Literal(getPairNum(p1, c), false);
+					clause[1] = new Literal(getPairNum(p2, c), false);
+					solver.addClause(clause);
+				}
+			}
+		}
+
+		// At least one card of each category is in the case file.
+		// Suspects
+		Literal[] clause = new Literal[Constants.suspects.length];
+		for (int i = 0; i < Constants.suspects.length; i++) {
+			clause[i] = new Literal(getPairNum(Constants.caseFile, Constants.suspects[i]), true);
+		}    
+		solver.addClause(clause);
+
+		// Weapons
+		clause = new Literal[Constants.weapons.length];
+		for (int i = 0; i < Constants.weapons.length; i++) {
+			clause[i] = new Literal(getPairNum(Constants.caseFile, Constants.weapons[i]), true);
+		}    
+		solver.addClause(clause);
+
+		// Rooms
+		clause = new Literal[Constants.rooms.length];
+		for (int i = 0; i < Constants.rooms.length; i++) {
+			clause[i] = new Literal(getPairNum(Constants.caseFile, Constants.rooms[i]), true);
+		}    
+		solver.addClause(clause);
+
+		// No two cards in each category can both be in the case file.
+		// Suspects
+		for(int i = 0; i < Constants.suspects.length; i++) {
+			for(int j = i + 1; j < Constants.suspects.length; j++) {
+				clause = new Literal[2];
+				clause[0] = new Literal(getPairNum(Constants.caseFile, Constants.suspects[i]), false);
+				clause[1] = new Literal(getPairNum(Constants.caseFile, Constants.suspects[j]), false);
+				solver.addClause(clause);
+			}
+		}
+
+		// Weapons
+		for(int i = 0; i < Constants.weapons.length; i++) {
+			for(int j = i + 1; j < Constants.weapons.length; j++) {
+				clause = new Literal[2];
+				clause[0] = new Literal(getPairNum(Constants.caseFile, Constants.weapons[i]), false);
+				clause[1] = new Literal(getPairNum(Constants.caseFile, Constants.weapons[j]), false);
+				solver.addClause(clause);
+			}
+		}
+
+		// Rooms
+		for(int i = 0; i < Constants.rooms.length; i++) {
+			for(int j = i + 1; j < Constants.rooms.length; j++) {
+				clause = new Literal[2];
+				clause[0] = new Literal(getPairNum(Constants.caseFile, Constants.rooms[i]), false);
+				clause[1] = new Literal(getPairNum(Constants.caseFile, Constants.rooms[j]), false);
+				solver.addClause(clause);
+			}
+		}
+	}
+
+	public void hand(String player, String[] cards) 
+	{
+		for(String card : cards) {
+			Literal[] clause = new Literal[1];
+			clause[0] = new Literal(getPairNum(player, card), true);
+			solver.addClause(clause);
+		}
+	}
+
+
+	public void suggest(String suggester, String card1, String card2, 
+			String card3, String refuter, String cardShown) 
+	{
+		if (refuter == null) {
+			// For each card 1,2,3 either the suggester has it or its
+			// in the case file
+
+			Literal[] clause = new Literal[2];
+
+			clause[0] = new Literal(getPairNum(suggester, card1), true);
+			clause[1] = new Literal(getPairNum(Constants.caseFile, card1), true);
+			solver.addClause(clause);
+
+			clause = new Literal[2];
+			clause[0] = new Literal(getPairNum(suggester, card2), true);
+			clause[1] = new Literal(getPairNum(Constants.caseFile, card2), true);
+			solver.addClause(clause);
+
+			clause = new Literal[2];
+			clause[0] = new Literal(getPairNum(suggester, card3), true);
+			clause[1] = new Literal(getPairNum(Constants.caseFile, card3), true);
+		}
+		else {
+			if(cardShown == null) {
+				// The refuter must have at least one of the cards
+				Literal[] clause = new Literal[3];
+				clause[0] = new Literal(getPairNum(refuter, card1), true);
+				clause[1] = new Literal(getPairNum(refuter, card2), true);
+				clause[2] = new Literal(getPairNum(refuter, card3), true);
+				solver.addClause(clause);
+
+				// Of the refuter and all the players between
+				// the refuter and the suggester, one of them
+				// or the case file has the card
+				List<String> betweens = playersBetween(refuter, suggester);
+
+				// 1 for each card/
+				Literal[] clause1 = new Literal[betweens.size() + 2]; // +2 (1 for refuter, 1 for caseFile)
+				Literal[] clause2 = new Literal[betweens.size() + 2]; 
+				Literal[] clause3 = new Literal[betweens.size() + 2]; 
+
+				int i = 0;
+				for(String plyr : betweens) {
+					clause1[i] = new Literal(getPairNum(plyr, card1), true);
+					clause2[i] = new Literal(getPairNum(plyr, card2), true);
+					clause3[i] = new Literal(getPairNum(plyr, card3), true);
+					i++;
+				}
+
+				clause1[i] = new Literal(getPairNum(refuter, card1), true);
+				clause2[i] = new Literal(getPairNum(refuter, card2), true);
+				clause3[i] = new Literal(getPairNum(refuter, card3), true);
+				i++;
+
+				clause1[i] = new Literal(getPairNum(Constants.caseFile, card1), true);
+				clause2[i] = new Literal(getPairNum(Constants.caseFile, card2), true);
+				clause3[i] = new Literal(getPairNum(Constants.caseFile, card3), true);
+
+				solver.addClause(clause1);
+				solver.addClause(clause2);
+				solver.addClause(clause3);
+			}
+			else {
+				Literal[] clause = new Literal[1];
+				clause[0] = new Literal(getPairNum(refuter, cardShown), true);
+				solver.addClause(clause);
+
+				// Of all the players between
+				// the suggester and the refuter, one of them
+				// or the case file has the card
+				List<String> betweens = playersBetween(refuter, suggester);
+
+				// 1 for each card
+				// The clause above covers the fact that we actually
+				// know where one of these cards are
+				Literal[] clause1 = new Literal[betweens.size() + 1]; // +1 for caseFile
+				Literal[] clause2 = new Literal[betweens.size() + 1]; 
+				Literal[] clause3 = new Literal[betweens.size() + 1]; 
+
+				int i = 0;
+				for(String plyr : betweens) {
+					clause1[i] = new Literal(getPairNum(plyr, card1), true);
+					clause2[i] = new Literal(getPairNum(plyr, card2), true);
+					clause3[i] = new Literal(getPairNum(plyr, card3), true);
+					i++;
+				}
+
+				clause1[i] = new Literal(getPairNum(Constants.caseFile, card1), true);
+				clause2[i] = new Literal(getPairNum(Constants.caseFile, card2), true);
+				clause3[i] = new Literal(getPairNum(Constants.caseFile, card3), true);
+
+				solver.addClause(clause1);
+				solver.addClause(clause2);
+				solver.addClause(clause3);
+			}
+		}
+		filter();
+	}
+
+	public void accuse(String accuser, String card1, String card2, 
+			String card3, boolean isCorrect)
+	{
+		if(!isCorrect) {
+			Literal clause1[] = new Literal[1];
+			Literal clause2[] = new Literal[1];
+			Literal clause3[] = new Literal[1];
+			
+			clause1[0] = new Literal(getPairNum(Constants.caseFile, card1), false);
+			clause2[0] = new Literal(getPairNum(Constants.caseFile, card2), false);
+			clause3[0] = new Literal(getPairNum(Constants.caseFile, card3), false);
+			solver.addClause(clause1);
+			solver.addClause(clause2);
+			solver.addClause(clause3);
+		}
+		else {
+			// doesn't really matter, GAME OVER
+		}
+		filter();
+	}
+
+	public int query(String player, String card) 
+	{
+		return solver.testLiteral(getPairNum(player, card));
+	}
+
+	public String queryString(int returnCode) 
+	{
+		if (returnCode == SATSolverGiven.TRUE)
+			return "Y";
+		else if (returnCode == SATSolverGiven.FALSE)
+			return "n";
+		else
+			return "-";
+	}
+
+	public void printNotepad() 
+	{
+		PrintStream out = System.out;
+		for (String player : Constants.players)
+			out.print("\t" + player);
+		out.println("\t" + Constants.caseFile);
+		for (String card : cards) {
+			out.print(card + "\t");
+			for (String player : Constants.players) 
+				out.print(queryString(query(player, card)) + "\t");
+			out.println(queryString(query(Constants.caseFile, card)));
+		}
+	}
+
+	// Returns a list of players after the refuter but before the suggester
+	private List<String> playersBetween(String suggester, String refuter) {
+		List<String> plyrs = new ArrayList<String>();
+		if(getPlayerNum(suggester) < getPlayerNum(refuter)) {
+			for(int i = getPlayerNum(suggester); i < getPlayerNum(refuter); i++)
+				plyrs.add(Constants.players[i]);
+		}
+		else {
+			for(int i = 0; i < getPlayerNum(refuter); i++)
+				plyrs.add(Constants.players[i]);
+			for(int i = getPlayerNum(suggester) + 1; i < numPlayers; i++)
+				plyrs.add(Constants.players[i]);
+		}
+		return plyrs;
+	}
+
+
+	// Don't run this
+	public static void main(String[] args) 
+	{
+		ClueReasoner cr = new ClueReasoner(6);
+		String[] myCards = {"wh", "li", "st"};
+		cr.hand("sc", myCards);
+		cr.suggest("sc", "sc", "ro", "lo", "mu", "sc");
+		cr.suggest("mu", "pe", "pi", "di", "pe", null);
+		cr.suggest("wh", "mu", "re", "ba", "pe", null);
+		cr.suggest("gr", "wh", "kn", "ba", "pl", null);
+		cr.suggest("pe", "gr", "ca", "di", "wh", null);
+		cr.suggest("pl", "wh", "wr", "st", "sc", "wh");
+		cr.suggest("sc", "pl", "ro", "co", "mu", "pl");
+		cr.suggest("mu", "pe", "ro", "ba", "wh", null);
+		cr.suggest("wh", "mu", "ca", "st", "gr", null);
+		cr.suggest("gr", "pe", "kn", "di", "pe", null);
+		cr.suggest("pe", "mu", "pi", "di", "pl", null);
+		cr.suggest("pl", "gr", "kn", "co", "wh", null);
+		cr.suggest("sc", "pe", "kn", "lo", "mu", "lo");
+		cr.suggest("mu", "pe", "kn", "di", "wh", null);
+		cr.suggest("wh", "pe", "wr", "ha", "gr", null);
+		cr.suggest("gr", "wh", "pi", "co", "pl", null);
+		cr.suggest("pe", "sc", "pi", "ha", "mu", null);
+		cr.suggest("pl", "pe", "pi", "ba", null, null);
+		cr.suggest("sc", "wh", "pi", "ha", "pe", "ha");
+		cr.suggest("wh", "pe", "pi", "ha", "pe", null);
+		cr.suggest("pe", "pe", "pi", "ha", null, null);
+		cr.suggest("sc", "gr", "pi", "st", "wh", "gr");
+		cr.suggest("mu", "pe", "pi", "ba", "pl", null);
+		cr.suggest("wh", "pe", "pi", "st", "sc", "st");
+		cr.suggest("gr", "wh", "pi", "st", "sc", "wh");
+		cr.suggest("pe", "wh", "pi", "st", "sc", "wh");
+		cr.suggest("pl", "pe", "pi", "ki", "gr", null);
+		cr.printNotepad();
+		cr.accuse("sc", "pe", "pi", "bi", true);
+	}
+
+	public String getRoom() {
+		return room;
+	}
+
+	public String getWeapon() {
+		return weapon;
+	}
+
+	public String getSuspect() {
+		return suspect;
+	}
+
+	// Particle Filtering Stuff
+	// We should have n valid samples after this call
+	private void generateSamples() {
+		for(int i = 0; i < particles.length; i++) {
+			particles[i] = new Sample(numPlayers, this);
+			while(!particles[i].Satisfies())
+				particles[i] = new Sample(numPlayers, this);
+		}
+	}
+
+	public void filter() {
+		// Indices into 'particles'
+		List<Integer> good = new ArrayList<Integer>();
+		List<Integer> bad = new ArrayList<Integer>();
+
+		for(int i = 0; i < particles.length; i++) {
+			if(particles[i].Satisfies())
+				good.add(i);
+			else
+				bad.add(i);
+		}
+
+		for(int i = 0; i < bad.size(); i++) {
+			// Pick a random entry in good to mutate
+			Sample original = particles[good.get(r.nextInt(good.size()))];
+			// Mutate it
+			Sample mutated = original.mutate();
+			// Put it into particles where 'bad[i]' was
+			particles[bad.get(i)] = mutated;
+		}
+	}
+
+	public double probability(String player, String card) {
+		int count = 0;
+		for(int i = 0; i < particles.length; i++) {
+			Sample s = particles[i];
+			List<String> h = s.getHand(player);
+			if(h.contains(card))
+				count++;
+		}
+		return ((double)count) / ((double) particles.length);
+	}
+
+	// The entropy of the case file
+	public double cfEntropy() {
+		double H = 0;
+		for(String room : Constants.rooms) {
+			for(String suspect : Constants.suspects) {
+				for(String weapon : Constants.weapons) {
+
+					double p1 = probability(Constants.caseFile, room);
+					double p2 = probability(Constants.caseFile, suspect);
+					double p3 = probability(Constants.caseFile, weapon);
+					
+					double p = Math.max(0, p1) * Math.max(0, p2) * Math.max(0, p3);
+					if(p != 0)
+						H += p * Math.log(p);
+				}
+			}
+		}
+		return Math.abs(H);
+	}
+
+}
+

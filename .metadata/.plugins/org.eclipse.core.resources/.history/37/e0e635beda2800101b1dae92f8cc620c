@@ -1,0 +1,634 @@
+package board;
+
+import game.Clue_Game;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import javax.swing.BoxLayout;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+
+import players.Human_Player;
+import players.Player;
+
+
+
+
+public class Clue_Board extends JPanel implements MouseListener, ActionListener {
+	private JPanel board;
+
+	private List<Player> players;
+	private int current_player = 0;
+
+	private List<List<Space>> map;
+
+	private List<Space> current_reachable;
+	private int[][] room_location;
+
+	private Deck deck;
+
+	private Random r;
+
+	// CaseFile
+	private Card case_suspect;
+	private Card case_weapon;
+	private Card case_room;
+
+
+	public Clue_Board(List<Player> players) {
+		this.players = players;
+		this.deck = new Deck();
+		this.r = new Random();
+		this.current_reachable = new ArrayList<Space>();
+
+		initialize_map();
+		initialize_neighbors();
+		initialize_start_positions();
+		initialize_listeners();
+
+		this.board = new JPanel();
+		board.setLayout(new GridLayout(Constants.BOARD_Y, Constants.BOARD_X));
+
+		for(int i = 0; i < Constants.BOARD_Y; i++) {
+			for(int j = 0; j < Constants.BOARD_X; j++) {
+				//System.out.println("(" + j + ", " + i + ")");
+				map.get(j).get(i).initPanel();
+				board.add(map.get(j).get(i));
+			}
+		}
+		this.setLayout(new BorderLayout());
+		this.add(board, BorderLayout.CENTER);
+		deal();
+	}
+
+	public void play() {
+
+		if(players.get(current_player) instanceof Human_Player) {
+			Human_Player myTurn = (Human_Player) players.get(current_player);
+			Space myLoc = map.get(myTurn.getX()).get(myTurn.getY());
+
+			int o = JOptionPane.NO_OPTION;
+			if(myTurn.isMoved()) {
+				o = JOptionPane.showConfirmDialog(Clue_Game.getSingletonObject(), 
+						myTurn.getCharacter() + ", would you like to make a suggestion?",
+						"You have been moved to a room by another player",
+						JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+			}
+
+			if(o == JOptionPane.YES_OPTION) {
+				suggestion(map.get(myTurn.getX()).get(myTurn.getY()));
+			}
+			else if(!myTurn.isMoved()) {
+				int roll = r.nextInt(6) + 1;
+
+				if(myLoc.type != Constants.SPACE) {
+					for(Space n : myLoc.getNeighbors()) {
+						if(n.type != myLoc.type) {
+							n.setReachable(true);
+							current_reachable.add(n);
+						}
+						if(n.type == Constants.SPACE)
+							setReachables(n, roll - 1, true);
+					}
+				}
+				else
+					setReachables(myLoc, roll, false);
+				BorderLayout layout = (BorderLayout) this.getLayout();
+				if(layout.getLayoutComponent(BorderLayout.PAGE_END) != null)
+					this.remove(layout.getLayoutComponent(BorderLayout.PAGE_END));
+				this.add(myTurn.getHand(), BorderLayout.PAGE_END);
+				this.repaint();
+
+				JOptionPane.showMessageDialog(Clue_Game.getSingletonObject(), myTurn.getCharacter() + ", " +
+						"It's your turn!\nYou have rolled a " + roll);
+			}
+		}
+		else {
+			// Alg
+			// Have it do the work
+			;
+		}
+	}
+
+	private void setReachables(Space origin, int roll, boolean flag) {
+		if(roll <= 0)
+			return;
+
+		if((origin.type == Constants.SPACE)) {
+			for(Space s : origin.getNeighbors()) {
+				if(s.getPlayer() == Constants.DEFAULT) {
+					if(s.getType() != Constants.SPACE) {
+						if(flag == false) {
+							s.setReachable(true);
+							current_reachable.add(s);
+						}
+					}
+					else {
+						s.setReachable(true);
+						current_reachable.add(s);
+						setReachables(s, roll - 1, flag);
+					}
+				}
+			}
+		}
+	}
+
+	private void deal() {
+		this.case_room = deck.getRoom();
+		this.case_suspect = deck.getSuspect();
+		this.case_weapon = deck.getRoom();
+
+		int player_index = 0;
+		Card temp;
+		while((temp = deck.getSuspect()) != null) {
+			players.get(player_index).deal(temp);
+			player_index = (player_index + 1) % players.size();
+		}
+		while((temp = deck.getRoom()) != null) {
+			players.get(player_index).deal(temp);
+			player_index = (player_index + 1) % players.size();
+		}
+		while((temp = deck.getWeapon()) != null) {
+			players.get(player_index).deal(temp);
+			player_index = (player_index + 1) % players.size();
+		}
+	}
+
+	private void initialize_listeners() {
+		for(List<Space> list : map) {
+			for(Space sp : list) {
+				sp.addMouseListener(this);
+			}
+		}
+	}
+
+	private void initialize_start_positions() {
+		for(List<Space> column : map)
+			for(Space sp : column) 
+				sp.setPlayer(Constants.DEFAULT);
+
+		for(Player p : players) {
+			this.map.get(p.getX()).get(p.getY()).setPlayer(p.getCharacter());
+		}
+	}
+
+	private void initialize_neighbors() {
+		for(int x = 0; x < Constants.BOARD_X; x++) {
+			for(int y = 0; y < Constants.BOARD_Y; y++) {
+				Space temp = map.get(x).get(y);
+				switch(temp.type) {
+				case Constants.BALLROOM:
+					temp.addNeighbor(map.get(7).get(19));
+					temp.addNeighbor(map.get(9).get(16));
+					temp.addNeighbor(map.get(14).get(16));
+					temp.addNeighbor(map.get(16).get(19));
+					break;
+				case Constants.BILLIARD_ROOM:
+					temp.addNeighbor(map.get(1).get(11));
+					temp.addNeighbor(map.get(6).get(15));
+					break;
+				case Constants.LIBRARY:
+					temp.addNeighbor(map.get(3).get(11));
+					temp.addNeighbor(map.get(7).get(8));
+					break;
+				case Constants.CONSERVATORY:
+					temp.addNeighbor(map.get(4).get(18));
+					temp.addNeighbor(map.get(5).get(19));
+					temp.addNeighbor(map.get(6).get(20));
+					// Lounge
+					temp.addNeighbor(map.get(17).get(5));
+					break;
+				case Constants.STUDY:
+					temp.addNeighbor(map.get(6).get(4));
+					// Kitchen
+					temp.addNeighbor(map.get(19).get(18));
+					break;
+				case Constants.KITCHEN:
+					temp.addNeighbor(map.get(19).get(17));
+					// Study
+					temp.addNeighbor(map.get(6).get(3));
+					break;
+				case Constants.DINING_ROOM:
+					temp.addNeighbor(map.get(15).get(12));
+					temp.addNeighbor(map.get(17).get(8));
+					break;
+				case Constants.LOUNGE:
+					temp.addNeighbor(map.get(17).get(6));
+					// Conservatory
+					temp.addNeighbor(map.get(4).get(19));
+					temp.addNeighbor(map.get(5).get(20));
+					break;
+				case Constants.HALL:
+					temp.addNeighbor(map.get(8).get(4));
+					temp.addNeighbor(map.get(11).get(7));
+					temp.addNeighbor(map.get(12).get(7));
+					break;
+				case Constants.SPACE:
+					// Dealt with below
+					break;
+				default:
+					break;
+				}
+			}
+		}
+
+		Space temp;
+		for(int i = 0; i < Constants.BOARD_X; i++) {
+			for(int j = 0; j < Constants.BOARD_Y; j++) {
+				temp = map.get(i).get(j);
+				if(temp.type != Constants.SPACE) continue;
+				Space nbr;
+				// Checking left
+				if(temp.xPos > 0) {
+					nbr = map.get(temp.xPos-1).get(temp.yPos);
+					if(nbr.type == Constants.SPACE)
+						temp.addNeighbor(nbr);
+					// Its a room
+					else if (nbr.type != Constants.BLOCKED) {
+						if(nbr.neighbors.contains(temp)) {
+							temp.addNeighbor(nbr);
+						}
+					}
+				}
+				// Checking right
+				if(temp.xPos < 23) {
+					nbr = map.get(temp.xPos+1).get(temp.yPos);
+					if(nbr.type == Constants.SPACE)
+						temp.addNeighbor(nbr);
+					// Its a room
+					else if (nbr.type != Constants.BLOCKED) {
+						if(nbr.neighbors.contains(temp)) {
+							temp.addNeighbor(nbr);
+						}
+					}
+				}
+				// Checking up
+				if(temp.yPos > 0) {
+					nbr = map.get(temp.xPos).get(temp.yPos-1);
+					if(nbr.type == Constants.SPACE)
+						temp.addNeighbor(nbr);
+					// Its a room
+					else if (nbr.type != Constants.BLOCKED) {
+						if(nbr.neighbors.contains(temp)) {
+							temp.addNeighbor(nbr);
+						}
+					}
+				}
+				// Checking down
+				if(temp.yPos < 24) {
+					nbr = map.get(temp.xPos).get(temp.yPos+1);
+					if(nbr.type == Constants.SPACE)
+						temp.addNeighbor(nbr);
+					// Its a room
+					else if (nbr.type != Constants.BLOCKED) {
+						if(nbr.neighbors.contains(temp)) {
+							temp.addNeighbor(nbr);
+						}
+					}
+				}
+			}
+		}
+
+	}
+
+	private void initialize_map() {
+		// Set up our standard room location
+		this.room_location = new int[9][2];
+		for(int i = 0; i <= 8; i++) {
+			switch(i) {
+			case Constants.STUDY:
+				room_location[i][0] = 0;
+				room_location[i][1] = 0;
+				break;
+			case Constants.HALL:
+				room_location[i][0] = 9;
+				room_location[i][1] = 0;
+				break;
+			case Constants.LOUNGE:
+				room_location[i][0] = 17;
+				room_location[i][1] = 1;
+				break;
+			case Constants.DINING_ROOM:
+				room_location[i][0] = 16;
+				room_location[i][1] = 10;
+				break;
+			case Constants.KITCHEN:
+				room_location[i][0] = 18;
+				room_location[i][1] = 19;
+				break;
+			case Constants.BALLROOM:
+				room_location[i][0] = 9;
+				room_location[i][1] = 20;
+				break;
+			case Constants.CONSERVATORY:
+				room_location[i][0] = 0;
+				room_location[i][1] = 20;
+				break;
+			case Constants.BILLIARD_ROOM:
+				room_location[i][0] = 0;
+				room_location[i][1] = 13;
+				break;
+			case Constants.LIBRARY:
+				room_location[i][0] = 0;
+				room_location[i][1] = 7;
+				break;
+			case Constants.SPACE:
+			default: break;
+			}
+		}
+
+		map = new ArrayList<List<Space>>(Constants.BOARD_X);
+
+		// Initialize to null
+		for(int i = 0; i < Constants.BOARD_X; i++) {
+			map.add(new ArrayList<Space>(Constants.BOARD_Y));
+			for(int j = 0; j < Constants.BOARD_Y; j++)
+				map.get(i).add(j, null);
+		}
+
+		// First the Blocked spaces
+		// upper
+		map.get(6).set(0, new Space(6, 0, Constants.BLOCKED));
+		map.get(8).set(0, new Space(8, 0, Constants.BLOCKED));
+		map.get(15).set(0, new Space(15, 0, Constants.BLOCKED));
+		map.get(17).set(0, new Space(17, 0, Constants.BLOCKED));
+		// left
+		map.get(0).set(4, new Space(0, 4, Constants.BLOCKED));
+		map.get(0).set(6, new Space(0, 6, Constants.BLOCKED));
+		map.get(0).set(10, new Space(0, 10, Constants.BLOCKED));
+		map.get(0).set(11, new Space(0, 11, Constants.BLOCKED));
+		map.get(0).set(17, new Space(0, 17, Constants.BLOCKED));
+		map.get(0).set(19, new Space(0, 19, Constants.BLOCKED));
+		// right
+		map.get(23).set(6, new Space(23, 6, Constants.BLOCKED));
+		map.get(23).set(8, new Space(23, 8, Constants.BLOCKED));
+		map.get(23).set(16, new Space(23, 16, Constants.BLOCKED));
+		map.get(23).set(18, new Space(23, 18, Constants.BLOCKED));
+		// bottom
+		map.get(6).set(23, new Space(6, 23, Constants.BLOCKED));
+		map.get(17).set(23, new Space(17, 23, Constants.BLOCKED));
+		map.get(6).set(24, new Space(6, 24, Constants.BLOCKED));
+		map.get(7).set(24, new Space(7, 24, Constants.BLOCKED));
+		map.get(8).set(24, new Space(8, 24, Constants.BLOCKED));
+		map.get(15).set(24, new Space(15, 24, Constants.BLOCKED));
+		map.get(16).set(24, new Space(16, 24, Constants.BLOCKED));
+		map.get(17).set(24, new Space(17, 24, Constants.BLOCKED));
+		// center block
+		for(int i = 9; i < 14; i++) {
+			for(int j = 8; j < 15; j++) {
+				map.get(i).set(j, new Space(i, j, Constants.BLOCKED));
+			}
+		}
+
+		// Study
+		for(int i = 0; i < 7; i++) {
+			for(int j = 0; j < 4; j++) {
+				if(map.get(i).get(j) == null)
+					map.get(i).set(j, new Space(i, j, Constants.STUDY));
+			}
+		}
+
+		// Hall;
+		for(int i = 9; i < 15; i++) {
+			for(int j = 0; j < 7; j++) {
+				if(map.get(i).get(j) == null)
+					map.get(i).set(j, new Space(i, j, Constants.HALL));
+			}
+		}
+
+		// Lounge
+		for(int i = 17; i < 24; i++) {
+			for(int j = 0; j < 6; j++) {
+				if(map.get(i).get(j) == null) 
+					map.get(i).set(j, new Space(i, j, Constants.LOUNGE));
+			}
+		}
+
+		// Library
+		for(int i = 0; i < 7; i++) {
+			for(int j = 6; j < 11; j++) {
+				if(map.get(i).get(j) == null) {
+					if((i == 6) && ((j == 6) ||  (j == 10))) ;
+					else
+						map.get(i).set(j, new Space(i, j, Constants.LIBRARY));
+				}
+			}
+		}
+
+		// Billiard Room
+		for(int i = 0; i < 6; i++) {
+			for(int j = 12; j < 17; j++) {
+				if(map.get(i).get(j) == null) {
+					map.get(i).set(j, new Space(i, j, Constants.BILLIARD_ROOM));
+				}
+			}
+		}
+
+		// Conservatory
+		for(int i = 0; i < 6; i++) {
+			for(int j = 19; j < 25; j++) {
+				if(map.get(i).get(j) == null) {
+					if((i == 5) && (j == 19)) ;
+					else
+						map.get(i).set(j, new Space(i, j, Constants.CONSERVATORY));
+				}
+			}
+		}
+
+		// Ballroom
+		for(int i = 8; i < 16; i++) {
+			for(int j = 17; j < 23; j++) {
+				if(map.get(i).get(j) == null) {
+					map.get(i).set(j, new Space(i, j, Constants.BALLROOM));
+				}
+			}
+		}
+
+		for(int i = 10; i < 14; i++) {
+			for(int j = 22; j < 25; j++) {
+				if(map.get(i).get(j) == null)
+					map.get(i).set(j, new Space(i, j, Constants.BALLROOM));
+			}
+		}
+
+		// Dining Room	
+		for(int i = 16; i < 24; i++) {
+			for(int j = 9; j < 16; j++) {
+				if(map.get(i).get(j) == null) {
+					if((j == 15) && ((i == 16) || (i == 17) || (i == 18)))
+						continue;
+					map.get(i).set(j, new Space(i, j, Constants.DINING_ROOM));
+				}
+			}
+		}
+
+		// Kitchen
+		for(int i = 18; i < 24; i++) {
+			for(int j = 18; j < 25; j++) {
+				if(map.get(i).get(j) == null) {
+					map.get(i).set(j, new Space(i, j, Constants.KITCHEN));
+				}
+			}
+		}
+
+		// And now everything else is a space
+		for(int i = 0; i < Constants.BOARD_X; i++) {
+			for(int j = 0; j < Constants.BOARD_Y; j++) {
+				if(map.get(i).get(j) == null)
+					map.get(i).set(j, new Space(i, j, Constants.SPACE));
+			}
+		}
+	}
+
+	public void mouseClicked(MouseEvent e) {
+		Space clicked = (Space) e.getSource();
+		if(clicked.isReachable()) {
+			Player plyr = players.get(current_player);
+
+			Space old = map.get(plyr.getX()).get(plyr.getY());
+
+			if(clicked.type != Constants.SPACE) {
+				clicked = map.get(room_location[clicked.type][0]).get(room_location[clicked.type][1]);
+				while(clicked.getPlayer() != Constants.DEFAULT)
+					clicked = map.get(clicked.xPos+1).get(clicked.yPos);
+			}
+
+			old.setPlayer(Constants.DEFAULT);
+			clicked.setPlayer(plyr.getCharacter());
+			old.repaint();
+			clicked.repaint();
+
+			plyr.setX(clicked.xPos);
+			plyr.setY(clicked.yPos);
+
+			for(Space s : current_reachable) {
+				s.setReachable(false);
+			}
+
+			// Suggestion
+			if(clicked.type != Constants.SPACE) {
+				int s = JOptionPane.showConfirmDialog(Clue_Game.getSingletonObject(), 
+						"Would you like to make a suggestion?", "You have entered a room",
+						JOptionPane.YES_NO_OPTION);
+				if(s == JOptionPane.YES_OPTION) {	
+					suggestion(clicked);
+				}
+
+			}
+			this.repaint();
+
+			current_player = (current_player + 1) % players.size();
+			this.play();
+		}
+		else {
+			JOptionPane.showMessageDialog(Clue_Game.getSingletonObject(), 
+					"This space is not currently reachable",
+					"Error",
+					JOptionPane.ERROR_MESSAGE);
+		}
+
+
+	}
+
+	private void suggestion(Space clicked) {
+		Suggestion_Panel sp = new Suggestion_Panel(clicked.type);
+		JOptionPane.showMessageDialog(Clue_Game.getSingletonObject(), sp,
+				"Suggestion", JOptionPane.QUESTION_MESSAGE);
+
+		// Move the suggested player to our room
+		Player s = getPlayer(sp.getSuspect());
+		if(s != null) {
+			Space old = map.get(s.getX()).get(s.getY());
+			old.setPlayer(Constants.DEFAULT);
+
+			while(clicked.getPlayer() != Constants.DEFAULT)
+				clicked = map.get(clicked.xPos+1).get(clicked.yPos);
+			clicked.setPlayer(s.getCharacter());
+			
+			s.setX(clicked.getXPos());
+			s.setY(clicked.getYPos());
+			s.setMoved(true);
+			old.repaint();
+			clicked.repaint();
+		}
+
+
+
+		// Get refuter
+		boolean refuted = false;
+		for(int i = 1; i < players.size(); i++) {
+			Player p = players.get((current_player + i) % players.size());
+			if(p.canRefute(sp.getSuspect(), sp.getWeapon(), sp.getRoom())) {
+				if(p instanceof Human_Player) {
+					Human_Player hp = (Human_Player) p;
+					Refute_Panel rp = new Refute_Panel(hp.refute(
+							sp.getSuspect(), sp.getWeapon(), sp.getRoom()), this);
+					// !!!! CHECK THIS ACTION LISTENER 					     ^
+					JOptionPane.showMessageDialog(Clue_Game.getSingletonObject(), rp, 
+							p.getCharacter() + ", refute" + players.get(current_player).getCharacter() +
+							"'s suggestion!", JOptionPane.PLAIN_MESSAGE);
+
+					// Show the player the card that was refuted
+					JOptionPane.showMessageDialog(Clue_Game.getSingletonObject(), 
+							players.get(current_player).getCharacter() 
+							+ ", " + p.getCharacter() + " has refuted your suggestion"
+							+ " by showing you " + rp.getRefutation() + ".");
+				}
+				refuted = true;
+				break;	
+			}
+		}
+
+		if(refuted) {
+
+
+		}
+		else {
+			// Would you like to make an accusation?
+			// Suggestion_Panel with different title!
+		}
+	}
+
+	private Player getPlayer(String character) {
+		for(Player p : players) {
+			if(p.getCharacter().equals(character))
+				return p;
+		}
+		return null;
+	}
+
+	public void mouseEntered(MouseEvent arg0) {
+		return;	
+	}
+
+	public void mouseExited(MouseEvent arg0) {
+		return;
+	}
+
+	public void mousePressed(MouseEvent arg0) {
+		return;
+	}
+
+	public void mouseReleased(MouseEvent arg0) {
+		return;		
+	}
+
+	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
+
+	}
+}

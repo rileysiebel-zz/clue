@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring accessors="true" comment="Delete 1 element(s) from project &apos;Clue_Game&apos;&#x0A;- Original project: &apos;Clue_Game&apos;&#x0A;- Original element: &apos;reasoner.Sample.java&apos;" description="Delete element" element1="/src&lt;reasoner{Sample.java" elements="1" flags="589830" id="org.eclipse.jdt.ui.delete" resources="0" stamp="1299949186517" subPackages="false" version="1.0"/>
+</session>

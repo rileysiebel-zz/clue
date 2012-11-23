@@ -1,0 +1,7 @@
+#Mon Dec 13 20:55:32 EST 2010
+ColorsAndFontsPreferencePage.expandedCategories=Torg.eclipse.ui.workbenchMisc
+org.eclipse.jface.textfont=1|Monaco|12.0|0|CARBON|1|Monaco;
+eclipse.preferences.version=1
+org.eclipse.ui.commands=<?xml version\="1.0" encoding\="UTF-8"?>\n<org.eclipse.ui.commands>\n<keyBinding contextId\="org.eclipse.ui.contexts.dialogAndWindow" keyConfigurationId\="org.eclipse.ui.defaultAcceleratorConfiguration" keySequence\="CTRL+SPACE"/>\n<keyBinding contextId\="org.eclipse.ui.contexts.dialogAndWindow" keyConfigurationId\="org.eclipse.ui.defaultAcceleratorConfiguration" keySequence\="CTRL+SPACE"/>\n<keyBinding commandId\="org.eclipse.ui.edit.text.contentAssist.proposals" contextId\="org.eclipse.ui.contexts.dialogAndWindow" keyConfigurationId\="org.eclipse.ui.defaultAcceleratorConfiguration" keySequence\="CTRL+SPACE"/>\n</org.eclipse.ui.commands>
+ENABLED_DECORATORS=org.eclipse.wst.server.ui.decorator\:false,com.android.ide.eclipse.adt.project.FolderDecorator\:true,org.eclipse.hyades.test.ui.internal.navigator.ExecutionHTNDecorator\:true,org.eclipse.jdt.ui.override.decorator\:true,org.eclipse.jdt.ui.interface.decorator\:false,org.eclipse.jdt.ui.buildpath.decorator\:true,org.eclipse.pde.ui.binaryProjectDecorator\:false,org.eclipse.team.cvs.ui.decorator\:false,org.eclipse.tptp.monitoring.managedagent.views.browser.decorator\:true,org.eclipse.ui.LinkedResourceDecorator\:true,org.eclipse.ui.ContentTypeDecorator\:true,org.eclipse.wst.server.ui.navigatorDecorator\:true,
+ColorsAndFontsPreferencePage.selectedElement=Forg.eclipse.jface.textfont

@@ -1,0 +1,2 @@
+Dec 13, 2010 8:53:37 PM com.interaktonline.jseclipse.JavaScriptEditorPlugin start
+INFO: JSEclipse start

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="org.eclipse.jdt.launching.localJavaApplication">
+<listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
+<listEntry value="/Clue_Game/src/game/Clue_Game.java"/>
+</listAttribute>
+<listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
+<listEntry value="1"/>
+</listAttribute>
+<stringAttribute key="org.eclipse.hyades.trace.ui.ATTR_DATA_COLLECTOR" value=""/>
+<stringAttribute key="org.eclipse.hyades.trace.ui.ATTR_DESTINATION_FILE" value=""/>
+<stringAttribute key="org.eclipse.hyades.trace.ui.ATTR_DESTINATION_MONITOR" value="DefaultMonitor"/>
+<stringAttribute key="org.eclipse.hyades.trace.ui.ATTR_DESTINATION_PROJECT" value="ProfileProject"/>
+<booleanAttribute key="org.eclipse.hyades.trace.ui.ATTR_PROFILE_TO_FILE" value="false"/>
+<stringAttribute key="org.eclipse.hyades.trace.ui.ATTR_PROFILING_SET" value="tptp-dummy-profiling-set-Clue_Game"/>
+<stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="game.Clue_Game"/>
+<stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="Clue_Game"/>
+</launchConfiguration>
